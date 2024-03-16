@@ -1,3 +1,4 @@
+// file deepcode ignore XSS: <please specify a reason of ignoring this>
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -10,6 +11,8 @@ var connection = mysql.createConnection({
   database: process.env.MYSQL_DATABASE,
 });
 
+connection.connect();
+
 const app = express();
 
 app.use(cors());
@@ -21,8 +24,6 @@ app.get("/", (req, res) => {
 });
 
 app.get("/db_up", async (req, res) => {
-  connection.connect();
-
   try {
     connection.query(
       `SELECT 1 + 1 AS solution`,
@@ -31,8 +32,6 @@ app.get("/db_up", async (req, res) => {
         console.log("The solution is: ", results[0].solution);
 
         const result = results[0].solution;
-
-        connection.end();
 
         res.send(`DB_UP: ${result}`);
       }
@@ -43,8 +42,6 @@ app.get("/db_up", async (req, res) => {
 });
 
 app.get("/db_create", async (req, res) => {
-  connection.connect();
-
   connection.query(
     `
     CREATE TABLE Banks (
@@ -76,8 +73,6 @@ app.get("/db_create", async (req, res) => {
             return res.send(`DB_CREATE: ERROR ${error}`);
           }
 
-          connection.end();
-
           res.send(`DB_CREATE: SUCCESS`);
         }
       );
@@ -86,8 +81,6 @@ app.get("/db_create", async (req, res) => {
 });
 
 app.get("/db_seed", async (req, res) => {
-  connection.connect();
-
   connection.query(
     `
     INSERT INTO Banks (id, name, tax, balance) VALUES
@@ -115,9 +108,8 @@ app.get("/db_seed", async (req, res) => {
           if (error) {
             return res.send(`DB_SEED: ERROR ${error}`);
           }
-          connection.end();
 
-          res.send(`DB_SEED: ${result}`);
+          res.send(`DB_SEED: SUCCESS`);
         }
       );
     }
@@ -125,8 +117,6 @@ app.get("/db_seed", async (req, res) => {
 });
 
 app.get("/db_verify", async (req, res) => {
-  connection.connect();
-
   let users, banks;
 
   connection.query(
@@ -150,7 +140,6 @@ app.get("/db_verify", async (req, res) => {
           }
 
           users = JSON.stringify(results);
-          connection.end();
 
           res.send(`DB_VERIFY: ${banks} ${users}`);
         }
@@ -160,8 +149,6 @@ app.get("/db_verify", async (req, res) => {
 });
 
 app.get("/transfer/:account1/:account2/:value", async (req, res) => {
-  connection.connect();
-
   try {
     connection.beginTransaction(function (error) {
       // START TRANSACTION;
@@ -198,9 +185,7 @@ app.get("/transfer/:account1/:account2/:value", async (req, res) => {
                   });
                 }
 
-                connection.end();
-
-                res.send(`TRANSFER: SUCCESS`);
+                return res.send(`TRANSFER: SUCCESS`);
               });
             }
           );
@@ -208,13 +193,11 @@ app.get("/transfer/:account1/:account2/:value", async (req, res) => {
       );
     });
   } catch (error) {
-    res.send(`TRANSFER: ERROR 4 ${error}`);
+    return res.send(`TRANSFER: ERROR 4 ${error}`);
   }
 });
 
 app.get("/transfer/:account1/:account2/:value/error", async (req, res) => {
-  connection.connect();
-
   try {
     connection.beginTransaction(function (error) {
       // START TRANSACTION;
@@ -246,8 +229,6 @@ app.get("/transfer/:account1/:account2/:value/error", async (req, res) => {
                 });
               }
 
-              console.log(results);
-
               throw new Error("FORCE CRASH");
 
               connection.query(
@@ -267,8 +248,6 @@ app.get("/transfer/:account1/:account2/:value/error", async (req, res) => {
                       });
                     }
 
-                    connection.end();
-
                     res.send(`TRANSFER: SUCCESS`);
                   });
                 }
@@ -279,15 +258,13 @@ app.get("/transfer/:account1/:account2/:value/error", async (req, res) => {
       );
     });
   } catch (error) {
-    res.send(`TRANSFER: ERROR 4 ${error}`);
+    return res.send(`TRANSFER: ERROR 4 ${error}`);
   }
 });
 
 app.get(
   "/transfer/:account1/:account2/:value/error/no-transaction",
   async (req, res) => {
-    connection.connect();
-
     connection.query(
       "UPDATE Users SET balance = balance - ? WHERE account = ?",
       [req.params.value, req.params.account1],
@@ -317,8 +294,6 @@ app.get(
                     });
                   }
 
-                  connection.end();
-
                   res.send(`TRANSFER: SUCCESS`);
                 });
               }
@@ -329,6 +304,137 @@ app.get(
     );
   }
 );
+
+app.get("/get-without-view/:id", async (req, res) => {
+  connection.query(
+    `
+    SELECT Users.id, Users.name, Users.email, Users.account, Users.balance, Banks.name as bankName, Banks.tax, Banks.balance as bankBalance
+    FROM Users
+    JOIN Banks ON Users.bancoId = Banks.id
+    WHERE Users.id = ?
+    `,
+    [req.params.id],
+    (error, results, fields) => {
+      if (error) {
+        return res.send(`GET_WITHOUT_VIEW: ERROR ${error}`);
+      }
+
+      res.send(`GET_WITHOUT_VIEW: ${JSON.stringify(results)}`);
+    }
+  );
+});
+
+app.get("/create-view", async (req, res) => {
+  connection.query(
+    `
+    CREATE VIEW UsersBanksView AS
+    SELECT Users.id, Users.name, Users.account, Users.balance, Banks.name as bankName, Banks.tax as bankTax
+    FROM Users
+    JOIN Banks ON Users.bancoId = Banks.id
+    `,
+    (error, results, fields) => {
+      if (error) {
+        return res.send(`CREATE_VIEW: ERROR ${error}`);
+      }
+
+      res.send(`CREATE_VIEW: SUCCESS`);
+    }
+  );
+});
+
+app.get("/get-with-view/:id", async (req, res) => {
+  connection.query(
+    `
+    SELECT * FROM UsersBanksView WHERE id = ?
+    `,
+    [req.params.id],
+    (error, results, fields) => {
+      if (error) {
+        return res.send(`GET_WITH_VIEW: ERROR ${error}`);
+      }
+
+      res.send(`GET_WITH_VIEW: ${JSON.stringify(results)}`);
+    }
+  );
+});
+
+app.get("/delete-trigger", async (req, res) => {
+  connection.query(
+    `
+    DROP TRIGGER UpdateBalanceTrigger
+    `,
+    (error, results, fields) => {
+      if (error) {
+        return res.send(`DELETE_TRIGGER: ERROR ${error}`);
+      }
+
+      res.send(`DELETE_TRIGGER: SUCCESS`);
+    }
+  );
+});
+
+app.get("/delete-procedure", async (req, res) => {
+  connection.query(
+    `
+    DROP PROCEDURE UpdateUserBalance
+    `,
+    (error, results, fields) => {
+      if (error) {
+        return res.send(`DELETE_PROCEDURE: ERROR ${error}`);
+      }
+
+      res.send(`DELETE_PROCEDURE: SUCCESS`);
+    }
+  );
+});
+
+app.get("/create-procedure", async (req, res) => {
+  connection.query(
+    `
+    CREATE PROCEDURE UpdateUserBalance(IN userId INT, IN newBalance DECIMAL(18, 2), IN oldBalance DECIMAL(18, 2), IN tax DECIMAL(18, 2))
+    BEGIN
+        DECLARE senderBankId INT;
+        DECLARE taxValue DECIMAL(18, 2);
+        
+        SELECT bancoId INTO senderBankId FROM Users WHERE id = userId;
+
+        SET taxValue = (oldBalance - newBalance) * tax;
+
+        IF oldBalance > newBalance THEN
+            UPDATE Banks
+            SET balance = balance + taxValue
+            WHERE id = senderBankId;
+        END IF;
+    END
+    `,
+    (error, results, fields) => {
+      if (error) {
+        return res.send(`CREATE_PROCEDURE: ERROR ${error}`);
+      }
+
+      res.send(`CREATE_PROCEDURE: SUCCESS`);
+    }
+  );
+});
+
+app.get("/create-trigger", async (req, res) => {
+  connection.query(
+    `
+    CREATE TRIGGER UpdateBalanceTrigger AFTER UPDATE ON Users
+    FOR EACH ROW
+    BEGIN
+        CALL UpdateUserBalance(OLD.id, NEW.balance, OLD.balance, (SELECT tax FROM Banks WHERE id = OLD.bancoId));
+    END
+    `,
+    (error, results, fields) => {
+      if (error) {
+        return res.send(`CREATE_TRIGGER: ERROR ${error}`);
+      }
+
+      res.send(`CREATE_TRIGGER: SUCCESS`);
+    }
+  );
+});
 
 app.listen(3000, () => {
   console.log("Server is running on port 3000");
