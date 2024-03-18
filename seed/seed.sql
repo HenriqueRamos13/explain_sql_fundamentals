@@ -1,4 +1,3 @@
--- Criação da tabela de usuários
 CREATE TABLE Users (
     id INT PRIMARY KEY,
     name NVARCHAR(100),
@@ -6,10 +5,10 @@ CREATE TABLE Users (
     account NVARCHAR(20),
     balance DECIMAL(18, 2),
     bancoId INT,
+    CONSTRAINT CHK_Balance CHECK (balance >= 0),
     FOREIGN KEY (bancoId) REFERENCES Banks(id)
 );
 
--- Criação da tabela de bancos
 CREATE TABLE Banks (
     id INT PRIMARY KEY,
     name NVARCHAR(100),

@@ -45,7 +45,7 @@ app.get("/db_create", async (req, res) => {
   connection.query(
     `
     CREATE TABLE Banks (
-        id INT PRIMARY KEY,
+        id INT PRIMARY KEY AUTO_INCREMENT,
         name NVARCHAR(100),
         tax DECIMAL(18, 2),
         balance DECIMAL(18, 2)
@@ -59,7 +59,7 @@ app.get("/db_create", async (req, res) => {
       connection.query(
         `
         CREATE TABLE Users (
-            id INT PRIMARY KEY,
+            id INT PRIMARY KEY AUTO_INCREMENT,
             name NVARCHAR(100),
             email NVARCHAR(100),
             account NVARCHAR(20),
@@ -432,6 +432,46 @@ app.get("/create-trigger", async (req, res) => {
       }
 
       res.send(`CREATE_TRIGGER: SUCCESS`);
+    }
+  );
+});
+
+app.get("/user/email/:email", async (req, res) => {
+  let totalTime = console.time("QUERY_TIME");
+
+  connection.query(
+    `
+    SELECT * FROM Users WHERE email = ?
+    `,
+    [req.params.email],
+    (error, results, fields) => {
+      if (error) {
+        return res.send(`USER: ERROR ${error}`);
+      }
+
+      totalTime = console.timeEnd("QUERY_TIME");
+
+      res.send(`USER: ${JSON.stringify(results)}`);
+    }
+  );
+});
+
+app.get("/user/conta/:conta", async (req, res) => {
+  let totalTime = console.time("QUERY_TIME");
+
+  connection.query(
+    `
+    SELECT * FROM Users WHERE account = ?
+    `,
+    [req.params.conta],
+    (error, results, fields) => {
+      if (error) {
+        return res.send(`USER: ERROR ${error}`);
+      }
+
+      totalTime = console.timeEnd("QUERY_TIME");
+
+      res.send(`USER: ${JSON.stringify(results)}`);
     }
   );
 });
