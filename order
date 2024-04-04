@@ -2,18 +2,18 @@ db_up
 db_create
 db_seed
 
-get-without-view/5
-create-view
-get-with-view/5
+# get-without-view/5
+# create-view
+# get-with-view/5
 
 create-procedure // delete-procedure
 create-trigger // delete-trigger
 transfer/12345-6/12345-7/1000
-transfer/12345-6/12345-7/1000/error
 
 transfer/12345-6/12345-7/1000
-transfer/12345-6/12345-7/1000/error
 transfer/12345-6/12345-7/1000/error/no-transaction
+transfer/12345-6/12345-7/1000/error
+
 
 
 

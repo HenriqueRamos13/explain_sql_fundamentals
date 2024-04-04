@@ -343,9 +343,10 @@ app.get("/create-view", async (req, res) => {
 });
 
 app.get("/get-with-view/:id", async (req, res) => {
+  // add join with the banks table
   connection.query(
     `
-    SELECT * FROM UsersBanksView WHERE id = ?
+    SELECT * FROM UsersBanksView WHERE id = ? 
     `,
     [req.params.id],
     (error, results, fields) => {
@@ -456,7 +457,7 @@ app.get("/user/email/:email", async (req, res) => {
   );
 });
 
-app.get("/user/conta/:conta", async (req, res) => {
+app.get("/user/account/:conta", async (req, res) => {
   let totalTime = console.time("QUERY_TIME");
 
   connection.query(
