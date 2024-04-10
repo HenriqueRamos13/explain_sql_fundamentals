@@ -55,23 +55,20 @@ SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; -- READ COMMITTED, READ
 
 START TRANSACTION;
 
-SELECT * FROM accounts WHERE user_name = 'Alice';
+SELECT * FROM Users WHERE id = 1;
 
 -- terminal 2
-SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-
 START TRANSACTION;
 
-UPDATE accounts SET balance = balance + 50 WHERE user_name = 'Alice';
+UPDATE Users SET name = "Joao Pedro II" WHERE id = 1;
 
+-- Terminal 1
+SELECT * FROM Users WHERE id = 1;
+
+-- terminal 2
 COMMIT;
 
 -- terminal 1
-SELECT * FROM accounts WHERE user_name = 'Alice';
-
-COMMIT;
-
--- terminal 2
 COMMIT;
 
 -- como saber qual nivel esta?
@@ -83,20 +80,20 @@ SHOW VARIABLES LIKE 'transaction_isolation';
 -- terminal 1
 START TRANSACTION;
 
-UPDATE table1 SET value = 'Updated by Session 1' WHERE id = 1;
+SELECT * FROM Users WHERE id = 1 FOR UPDATE;
 
 -- terminal 2
 START TRANSACTION;
 
-UPDATE table2 SET value = 'Updated by Session 2' WHERE id = 1;
+SELECT * FROM Banks WHERE id = 1 FOR UPDATE;
 
--- temrinal 1
-UPDATE table2 SET value = 'Updated by Session 1' WHERE id = 1;
+-- Terminal 1
+UPDATE Banks SET balance = balance + 50 WHERE id = 1;
 
--- temrinal 2
-UPDATE table1 SET value = 'Updated by Session 2' WHERE id = 1;
+-- terminal 2
+UPDATE Users SET balance = balance + 50 WHERE id = 1;
 
--- terminal 1 e 2
+-- terminal 1
 COMMIT;
 
 
