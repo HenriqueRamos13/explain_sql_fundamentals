@@ -1,21 +1,190 @@
-db_up
-db_create
-db_seed
+CREATE TABLE Banks (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        name NVARCHAR(100),
+        tax DECIMAL(18, 2),
+        balance DECIMAL(18, 2)
+    );
+CREATE TABLE Users (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            name NVARCHAR(100),
+            email NVARCHAR(100),
+            account NVARCHAR(20),
+            balance DECIMAL(18, 2),
+            bancoId INT,
+            FOREIGN KEY (bancoId) REFERENCES Banks(id)
+        );
+INSERT INTO Banks (id, name, tax, balance) VALUES
+    (1, 'Banco do Brasil', 0.01, 1000000),
+    (2, 'Itau', 0.02, 1000000),
+    (3, 'Bradesco', 0.03, 1000000),
+    (4, 'Caixa', 0.04, 1000000),
+    (5, 'Santander', 0.05, 1000000);
+INSERT INTO Users (id, name, email, account, balance, bancoId) VALUES
+    (1, 'Joao', 'email1@gmail.com', '12345-7', 1000, 1),
+    (2, 'Maria', 'email2@gmail.com', '54321-2', 2000, 2),
+    (3, 'Jose', 'email3@gmail.com', '12345-8', 3000, 3),
+    (4, 'Ana', 'email4@gmail.com', '54321-0', 4000, 4),
+    (5, 'Pedro', 'email5@gmail.com', '12345-6', 5000, 5);
 
-# get-without-view/5
-# create-view
-# get-with-view/5
-
-create-procedure // delete-procedure
-create-trigger // delete-trigger
-transfer/12345-6/12345-7/1000
-
-transfer/12345-6/12345-7/1000
-transfer/12345-6/12345-7/1000/error/no-transaction
-transfer/12345-6/12345-7/1000/error
 
 
+-- LOCKS
+-- terminal 1
+START TRANSACTION;
 
+SELECT * FROM Users WHERE id = 1 FOR UPDATE;
+
+-- terminal 2
+START TRANSACTION;
+
+UPDATE Users SET name = "Joao Pedro" WHERE id = 1;
+
+-- terminal 1
+COMMIT;
+
+
+-- verificar tempo de espera
+SHOW VARIABLES LIKE 'innodb_lock_wait_timeout';
+-- deseja configurar?
+SET SESSION innodb_lock_wait_timeout = 5;
+
+
+-- ISOLATION LEVEL
+-- terminal 1
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; -- READ COMMITTED, READ UNCOMMITTED, SERIALIZABLE
+
+START TRANSACTION;
+
+SELECT * FROM accounts WHERE user_name = 'Alice';
+
+-- terminal 2
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+START TRANSACTION;
+
+UPDATE accounts SET balance = balance + 50 WHERE user_name = 'Alice';
+
+COMMIT;
+
+-- terminal 1
+SELECT * FROM accounts WHERE user_name = 'Alice';
+
+COMMIT;
+
+-- terminal 2
+COMMIT;
+
+-- como saber qual nivel esta?
+SHOW VARIABLES LIKE 'transaction_isolation';
+
+
+
+-- DEADLOCK
+-- terminal 1
+START TRANSACTION;
+
+UPDATE table1 SET value = 'Updated by Session 1' WHERE id = 1;
+
+-- terminal 2
+START TRANSACTION;
+
+UPDATE table2 SET value = 'Updated by Session 2' WHERE id = 1;
+
+-- temrinal 1
+UPDATE table2 SET value = 'Updated by Session 1' WHERE id = 1;
+
+-- temrinal 2
+UPDATE table1 SET value = 'Updated by Session 2' WHERE id = 1;
+
+-- terminal 1 e 2
+COMMIT;
+
+
+-- CURSOR
+DELIMITER //
+
+CREATE PROCEDURE UpdateBalances()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE u_id INT;
+    DECLARE u_balance DECIMAL(18, 2);
+    
+    DECLARE cur CURSOR FOR SELECT id, balance FROM Users;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN cur;
+
+    read_loop: LOOP
+        FETCH cur INTO u_id, u_balance;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        -- Verifica se o ID é diferente de 1 antes de atualizar o saldo
+        IF u_id <> 1 THEN
+            UPDATE Users SET balance = u_balance + 100 WHERE id = u_id;
+        END IF;
+    END LOOP;
+
+    CLOSE cur;
+END //
+
+DELIMITER ;
+
+SELECT * FROM Users;
+
+CALL UpdateBalances();
+
+SELECT * FROM Users;
+
+-- VIEWS
+SELECT id, name, balance
+FROM Users
+WHERE balance > 2000;
+
+CREATE VIEW HighBalanceUsers AS
+SELECT id, name, balance
+FROM Users
+WHERE balance > 2000;
+
+SELECT * FROM HighBalanceUsers;
+
+
+-- TRIGGERS STORED
+DELIMITER //
+
+CREATE PROCEDURE UpdateBankBalance(IN bank_id INT, IN deposit_amount DECIMAL(18, 2))
+BEGIN
+    UPDATE Banks
+    SET balance = balance + deposit_amount
+    WHERE id = bank_id;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+
+CREATE TRIGGER AfterDeposit
+AFTER UPDATE ON Users
+FOR EACH ROW
+BEGIN
+    -- Calcula a diferença de saldo como depósito
+    IF NEW.balance > OLD.balance THEN
+        CALL UpdateBankBalance(NEW.bancoId, NEW.balance - OLD.balance);
+    END IF;
+END //
+
+DELIMITER ;
+
+SELECT * FROM Users;
+
+SELECT * FROM Banks;
+
+UPDATE Users SET balance = 1500 WHERE id = 1;
+
+SELECT * FROM Banks;
+
+
+-- INDICES
 
 
 INSERT INTO Users (name, email, account, balance, bancoId)
@@ -35,6 +204,9 @@ FROM
      CROSS JOIN (SELECT @id := 0) AS init
      LIMIT 10000000) AS id_generator;
 
+
+SELECT COUNT(*) FROM Users;
+
 INSERT INTO Users (name, email, account, balance, bancoId)
 VALUES ('Joao Henrique', 'email@gmail.pt', '123451333-623', 10000, 1);
 
@@ -42,7 +214,5 @@ user/email/email@gmail.pt
 
 ALTER TABLE Users
 ADD INDEX idx_account (account);
-
-SHOW INDEX FROM Users;
 
 user/account/123451333-623     
